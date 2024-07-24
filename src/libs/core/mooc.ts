@@ -2,6 +2,8 @@ import axios, { AxiosError } from "axios";
 import MoocHTMLParser from "../parser/mooc-parser";
 import puppeteer from "puppeteer";
 
+import fs from "fs";
+
 
 const courseInfoUrl = "https://www.icourse163.org/course/"
 const courseCommentUrl = "https://www.icourse163.org/web/j/mocCourseV2RpcBean.getCourseEvaluatePaginationByCourseIdOrTermId.rpc"
@@ -38,16 +40,20 @@ export const getCourseInfo = async (courseId: string) => {
 }
 
 export const getCoursePageWithPuppeteer = async (courseId: string) => {
-    console.log("正在启动浏览器");
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
+    // console.log("正在启动浏览器");
+    // const browser = await puppeteer.launch();
+    // const page = await browser.newPage();
 
-    console.log("正在进入页面");
-    await page.goto(courseInfoUrl + courseId);
-    const html = await page.content();
+    // console.log("正在进入页面");
+    // await page.goto(courseInfoUrl + courseId);
+    
+    // console.log("正在获取 html");
+    // const html = await page.content();
 
-    console.log("正在获取 html");
-    await browser.close();
+    // await browser.close();
+
+    // 打开本地 html 文件
+    const html = fs.readFileSync("../output/example.html", "utf-8");
 
     const data = analyzeCourseInfoDoc(html);
 
@@ -58,10 +64,17 @@ const analyzeCourseInfoDoc = (doc: string) => {
     const parser = new MoocHTMLParser(doc);
 
     return {
-        courseName: parser.getCourseName(),
+        courseName: parser.getName(),
         term: parser.getTerm(),
         termTime: parser.getTermTime(),
         workLoad: parser.getWorkLoad(),
         studentCount: parser.getStudentCount(),
+        headingIntro: parser.getHeadingIntro(),
+        teachingTarget: parser.getTeachingTarget(),
+        syllabus: parser.getOutline(),
+        prerequisites: parser.getPrerequisites(),
+        reference: parser.getReference(),
+        university: parser.getUniversity(),
+        teachers: parser.getTeachers(),
     };
 }

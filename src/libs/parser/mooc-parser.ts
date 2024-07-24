@@ -1,17 +1,29 @@
 import * as cheerio from "cheerio";
 
 type Doc = cheerio.Cheerio<cheerio.Element>
+interface CourseOutline {
+    title: string;
+    desc: string;
+    courses: string[];
+}
+interface Teachers {
+    name: string;
+    title: string;
+}
+
 
 // Cheerio 解析器
 class MoocHTMLParser {
+    private $: cheerio.CheerioAPI;
     private doc: Doc;
 
     constructor(html: string) {
-        this.doc = cheerio.load(html)("#g-container").find("#g-body");
+        this.$ = cheerio.load(html);
+        this.doc = this.$("#g-container").find("#g-body");
     }
 
-    // 进入课程基本信息
-    private goToCourseBacisInfo() {
+    // 课程基本信息
+    private goToBacisInfo() {
         return this.doc
             .find(".certifiedTop")
             .find(".m-top")
@@ -21,18 +33,19 @@ class MoocHTMLParser {
             .find(".title-wrapper")
     }
     // 获取课程名称
-    getCourseName() {
-        const courseBasicInfo = this.goToCourseBacisInfo();
-        return courseBasicInfo
+    getName() {
+        const basicInfo = this.goToBacisInfo();
+        return basicInfo
             .find(".f-cb")
             .find(".course-title-wrapper")
             .find(".course-title")
             .text();
     }
 
-    // 进入课程注册信息
-    private goToCourseEnrollInfo() {
-        const courseInfo = this.goToCourseBacisInfo();
+
+    // 课程注册信息
+    private goToEnrollInfo() {
+        const courseInfo = this.goToBacisInfo();
         return courseInfo
             .find("#course-enroll-info")
             .find(".course-enroll-info")
@@ -40,8 +53,8 @@ class MoocHTMLParser {
     }
     // 获取课程学期
     getTerm() {
-        const courseEnrollInfo = this.goToCourseEnrollInfo();
-        return courseEnrollInfo
+        const enrollInfo = this.goToEnrollInfo();
+        return enrollInfo
             .find(".course-enroll-info_course-info_term-select")
             .find(".course-enroll-info_course-info_term-select_dropdown")
             .find(".f-thide")
@@ -49,8 +62,8 @@ class MoocHTMLParser {
     }
     // 开课时间
     getTermTime() {
-        const courseEnrollInfo = this.goToCourseEnrollInfo();
-        return courseEnrollInfo
+        const enrollInfo = this.goToEnrollInfo();
+        return enrollInfo
             .find(".course-enroll-info_course-info_term-info")
             .find(".course-enroll-info_course-info_term-info_term-time")
             .find("span").eq(1)
@@ -58,19 +71,138 @@ class MoocHTMLParser {
     }
     // 学时安排
     getWorkLoad() {
-        const courseEnrollInfo = this.goToCourseEnrollInfo();
-        return courseEnrollInfo
+        const enrollInfo = this.goToEnrollInfo();
+        return enrollInfo
             .find(".course-enroll-info_course-info_term-workload")
             .find("span").eq(1)
             .text();
     }
     // 学习人数
     getStudentCount() {
-        const courseEnrollInfo = this.goToCourseEnrollInfo();
-        return courseEnrollInfo
+        const enrollInfo = this.goToEnrollInfo();
+        return enrollInfo
             .find(".course-enroll-info_course-info_term-progress")
             .find("span").eq(1)
             .text();
+    }
+
+    // 课程详情
+    private goToDetail() {
+        return this.doc
+            .find(".g-flow")
+            .find(".g-wrap")
+            .find(".g-mn2")
+            .find(".m-infomation")
+            .find("#content-section")
+    }
+    // 课程简介
+    getHeadingIntro() {
+        const courseDetail = this.goToDetail();
+        return courseDetail
+            .find(".course-heading-intro")
+            .find(".course-heading-intro_intro")
+            .text()
+    }
+    // TODO - 课程概述
+
+    // 授课目标
+    getTeachingTarget() {
+        const courseDetail = this.goToDetail();
+        return courseDetail
+            .find(".category-content").eq(1)
+            .find(".f-richEditorText")
+            .text()
+    }
+    // 课程大纲
+    getOutline() {
+        const outline: CourseOutline[] = [];
+
+        const courseDetail = this.goToDetail();
+        courseDetail
+            .find(".category-content").eq(2)
+            .find(".outline")
+            .find(".outline__new-outline")
+            .find(".outline__new-outline__chapter")
+            .map((_, element) => {
+                const content = this.$(element)
+                    .find(".outline__new-outline__chapter__content")
+                    .find("div")
+                const title = content.eq(0).text() || "无";
+                const desc = content.eq(1).text() || "无";
+                const courses = content.eq(2)
+                    .find(".outline__new-outline__chapter__content__plan__lessons")
+                    .map((_, element) => this.$(element).text())
+                    .get();
+
+                outline.push({
+                    title,
+                    desc,
+                    courses: Array.from(courses)
+                })
+            })
+
+        return outline;
+    }
+    // 预备知识
+    getPrerequisites() {
+        const courseDetail = this.goToDetail();
+        return courseDetail
+            .find(".category-content").eq(3)
+            .find(".f-richEditorText")
+            .text()
+    }
+    // 参考资料（教材）
+    getReference() {
+        const courseDetail = this.goToDetail();
+        return courseDetail
+            .find(".category-content").eq(4)
+            .find(".f-richEditorText")
+            .text()
+    }
+
+
+    // 获取授课教师信息
+    private goToInstitution() {
+        return this.doc
+            .find(".g-flow")
+            .find(".g-wrap")
+            .find(".g-sd2")
+            .find(".m-sdinfo")
+            .find(".m-teacher-list")
+            .find(".m-teachers")
+    }
+    // 获取学校信息
+    getUniversity() {
+        const institution = this.goToInstitution();
+        return institution
+            .find("a")
+            .attr("data-label")
+    }
+    // 获取教师信息
+    getTeachers() {
+        const teachers: Teachers[] = [];
+
+        const institution = this.goToInstitution();
+        institution
+            .find(".m-teachers_teacher-list")
+            .find(".m-teachers_teacher-list_wrap")
+            .find(".um-list-slider")
+            .find(".um-list-slider_con")
+            .find(".um-list-slider_con_item")
+            .map((_, element) => {
+                const content = this.$(element)
+                    .find(".u-tchcard")
+                    .find(".cnt")
+                const name = content.find("h3").text();
+                const title = content.find("p").text();
+
+                teachers.push({
+                    name,
+                    title
+                })
+            })
+
+        return teachers;
     }
 }
 

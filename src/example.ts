@@ -1,5 +1,5 @@
-import { getCourse } from "./libs/core/bili";
-import { getCourseInfo, getCoursePageWithPuppeteer } from "./libs/core/mooc";
+import { getCourse } from "./index";
+import { getCourseInfo, getCoursePageWithPuppeteer } from "./index";
 import fs from "fs";
 
 (async () => {
