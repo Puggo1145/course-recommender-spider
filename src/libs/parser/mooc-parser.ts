@@ -2,13 +2,13 @@ import * as cheerio from "cheerio";
 
 type Doc = cheerio.Cheerio<cheerio.Element>
 interface CourseOutline {
-    title: string;
-    desc: string;
-    courses: string[];
+    title: string | null;
+    desc: string | null;
+    courses: string[] | null;
 }
 interface Teachers {
-    name: string;
-    title: string;
+    name: string | null;
+    title: string | null;
 }
 
 
@@ -39,7 +39,7 @@ class MoocHTMLParser {
             .find(".f-cb")
             .find(".course-title-wrapper")
             .find(".course-title")
-            .text();
+            .text() ?? null;
     }
 
 
@@ -58,7 +58,7 @@ class MoocHTMLParser {
             .find(".course-enroll-info_course-info_term-select")
             .find(".course-enroll-info_course-info_term-select_dropdown")
             .find(".f-thide")
-            .attr("title");
+            .attr("title") ?? null;
     }
     // 开课时间
     getTermTime() {
@@ -67,7 +67,7 @@ class MoocHTMLParser {
             .find(".course-enroll-info_course-info_term-info")
             .find(".course-enroll-info_course-info_term-info_term-time")
             .find("span").eq(1)
-            .text();
+            .text() ?? null;
     }
     // 学时安排
     getWorkLoad() {
@@ -75,7 +75,7 @@ class MoocHTMLParser {
         return enrollInfo
             .find(".course-enroll-info_course-info_term-workload")
             .find("span").eq(1)
-            .text();
+            .text() ?? null;
     }
     // 学习人数
     getStudentCount() {
@@ -83,7 +83,7 @@ class MoocHTMLParser {
         return enrollInfo
             .find(".course-enroll-info_course-info_term-progress")
             .find("span").eq(1)
-            .text();
+            .text() ?? null;
     }
 
     // 课程详情
@@ -101,7 +101,7 @@ class MoocHTMLParser {
         return courseDetail
             .find(".course-heading-intro")
             .find(".course-heading-intro_intro")
-            .text()
+            .text() ?? null;
     }
     // TODO - 课程概述
 
@@ -111,7 +111,7 @@ class MoocHTMLParser {
         return courseDetail
             .find(".category-content").eq(1)
             .find(".f-richEditorText")
-            .text()
+            .text() ?? null;
     }
     // 课程大纲
     getOutline() {
@@ -126,18 +126,25 @@ class MoocHTMLParser {
             .map((_, element) => {
                 const content = this.$(element)
                     .find(".outline__new-outline__chapter__content")
-                    .find("div")
-                const title = content.eq(0).text() || "无";
-                const desc = content.eq(1).text() || "无";
-                const courses = content.eq(2)
+                
+                const title = content
+                    .find(".outline__new-outline__chapter__content__title")
+                    .find(".outline__new-outline__chapter__content__title__text")
+                    .text() || null;
+                const desc = content
+                    .find(".outline__new-outline__chapter__content__goals")
+                    .text() || null;
+                const courses = content
+                    .find(".outline__new-outline__chapter__content__plan")
                     .find(".outline__new-outline__chapter__content__plan__lessons")
+                    .find(".outline__new-outline__chapter__content__plan__lessons__lesson")
                     .map((_, element) => this.$(element).text())
-                    .get();
+                    .get() ?? null;
 
                 outline.push({
                     title,
                     desc,
-                    courses: Array.from(courses)
+                    courses
                 })
             })
 
@@ -149,7 +156,7 @@ class MoocHTMLParser {
         return courseDetail
             .find(".category-content").eq(3)
             .find(".f-richEditorText")
-            .text()
+            .text() ?? null;
     }
     // 参考资料（教材）
     getReference() {
@@ -157,7 +164,7 @@ class MoocHTMLParser {
         return courseDetail
             .find(".category-content").eq(4)
             .find(".f-richEditorText")
-            .text()
+            .text() ?? null;
     }
 
 
@@ -176,7 +183,7 @@ class MoocHTMLParser {
         const institution = this.goToInstitution();
         return institution
             .find("a")
-            .attr("data-label")
+            .attr("data-label") ?? null;
     }
     // 获取教师信息
     getTeachers() {
@@ -193,8 +200,8 @@ class MoocHTMLParser {
                 const content = this.$(element)
                     .find(".u-tchcard")
                     .find(".cnt")
-                const name = content.find("h3").text();
-                const title = content.find("p").text();
+                const name = content.find("h3").text() || null;
+                const title = content.find("p").text() || null;
 
                 teachers.push({
                     name,

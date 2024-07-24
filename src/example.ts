@@ -1,19 +1,18 @@
-import { getCourse } from "./index";
-import { getCourseInfo, getCoursePageWithPuppeteer } from "./index";
-import fs from "fs";
+import fs from "fs"
+
+import { getMoocInfo, getMoocComments } from "./index"
 
 (async () => {
-    // const res = await getCourse("BV1qW4y1a7fU");
-    // const res = await getCourseInfo("BIT-268001");
-    // console.log(res);
+    const infoRes = await getMoocInfo("BIT-268001");
+    // 保存到 output
+    fs.writeFileSync("../output/info.json", JSON.stringify(infoRes, null, 4))
 
-    const res = await getCoursePageWithPuppeteer("BIT-268001");
-    console.log(res);
-    
-        
-
-    // 将数据保存为 JSON 文件, nodejs
-    // fs.writeFileSync("data.html", res);
-    // fs.writeFileSync("data.json", JSON.stringify(res, null, 4));
-    
+    // const res = await getMoocComments({
+    //     courseId: "BIT-268001",
+    //     pageIndex: 1,
+    //     pageSize: 20,
+    //     orderBy: 3,
+    // })
+    // // 保存到 output
+    // fs.writeFileSync("../output/comments.json", JSON.stringify(res?.comments, null, 4))
 })()

@@ -2,7 +2,7 @@ import axios from "axios"
 // utils
 import { getDate } from "../../utils/timehandler"
 // constants
-import { header } from "../../constants/header"
+import { getRandomUserAgent } from "../../constants/ua"
 // types
 import type {
     CourseInfoResponse,
@@ -10,14 +10,22 @@ import type {
     Replies,
 } from "../../types/bili-response"
 
-export const getCourse = async (bvid: string) => {
+
+const headers = {
+    "Referer": "https://www.bilibili.com/",
+    "User-Agent": getRandomUserAgent(),
+}
+
+
+export const getBiliInfo = async (bvid: string) => {
+
     const { data: { data } } = await axios.get<CourseInfoResponse>(
         `https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`,
-        { headers: header }
+        { headers }
     )
 
     const aid = data.aid
-    const courseComments = await getCourseComment(aid)
+    const courseComments = await getBiliComment(aid)
 
 
     const chapters = data.pages.map(item => ({
@@ -57,7 +65,7 @@ const requestComment = async (aid: string, next: number) => {
 
     const { data } = await axios.get<CourseCommentResponse>(
         `https://api.bilibili.com/x/v2/reply/main?${new URLSearchParams(queryStr)}`,
-        { headers: header }
+        { headers }
     )
 
     // console.log(data);
@@ -65,7 +73,7 @@ const requestComment = async (aid: string, next: number) => {
     return data.data
 }
 
-export const getCourseComment = async (aid: string) => {
+export const getBiliComment = async (aid: string) => {
     let next = 1
     let comments: Replies[] = []
 
@@ -74,8 +82,8 @@ export const getCourseComment = async (aid: string) => {
         const total_comments = data.cursor.all_count
 
         // 获取评论，每次等待 1-4 秒
-        const interval = Math.floor(Math.random() * 1000) + 3000
         while (comments.length < total_comments) {
+            const interval = Math.floor(Math.random() * 1000) + 3000
             await new Promise(resolve => setTimeout(resolve, interval))
 
             const data = await requestComment(aid, next)

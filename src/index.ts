@@ -1,13 +1,13 @@
-import { getCourse } from "./libs/core/bili";
-import { getCourseInfo } from "./libs/core/mooc";
-import { getCoursePageWithPuppeteer } from "./libs/core/mooc";
+import { getBiliInfo, getBiliComment } from "./libs/core/bili";
+import { getMoocInfo, getMoocComments } from "./libs/core/mooc";
 
 // bili
 export {
-    getCourse
+    getBiliInfo,
+    getBiliComment
 }
 // mooc
 export {
-    getCourseInfo,
-    getCoursePageWithPuppeteer
+    getMoocInfo,
+    getMoocComments
 }
