@@ -1,14 +1,14 @@
 import axios from "axios"
 // utils
-import { getDate } from "../utils/timehandler"
+import { getDate } from "../../utils/timehandler"
 // constants
-import { header } from "../constants/header"
+import { header } from "../../constants/header"
 // types
 import type {
     CourseInfoResponse,
     CourseCommentResponse,
     Replies,
-} from "../types/bili-response"
+} from "../../types/bili-response"
 
 export const getCourse = async (bvid: string) => {
     const { data: { data } } = await axios.get<CourseInfoResponse>(

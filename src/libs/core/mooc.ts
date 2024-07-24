@@ -1,5 +1,6 @@
 import axios, { AxiosError } from "axios";
-import * as cheerio from "cheerio";
+import MoocHTMLParser from "../parser/mooc-parser";
+import puppeteer from "puppeteer";
 
 
 const courseInfoUrl = "https://www.icourse163.org/course/"
@@ -18,9 +19,9 @@ export const getCourseInfo = async (courseId: string) => {
     try {
         const res = await axios.get(url, { headers });
 
-        analyzeCourseInfoDoc(res.data);
+        const decodedCourseInfo = analyzeCourseInfoDoc(res.data);
 
-        return res.data;
+        return decodedCourseInfo;
     } catch (err) {
         if (err instanceof Error) {
             return {
@@ -36,26 +37,31 @@ export const getCourseInfo = async (courseId: string) => {
     }
 }
 
+export const getCoursePageWithPuppeteer = async (courseId: string) => {
+    console.log("正在启动浏览器");
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+
+    console.log("正在进入页面");
+    await page.goto(courseInfoUrl + courseId);
+    const html = await page.content();
+
+    console.log("正在获取 html");
+    await browser.close();
+
+    const data = analyzeCourseInfoDoc(html);
+
+    return data;
+}
+
 const analyzeCourseInfoDoc = (doc: string) => {
-    const html = cheerio.load(doc);
+    const parser = new MoocHTMLParser(doc);
 
-    // 课程基本信息
-    // const courseBasicInfo = html
-    //     .find(".certifiedTop")
-    //     .find(".m-top")
-    //     .find(".g-flow")
-    //     .find(".introCard")
-    //     .find(".course-enroll-info-wrapper")
-    //     .find(".title-wrapper")
-
-
-    // const courseName = courseBasicInfo
-    //     .find(".f-cb")
-    //     .find(".course-title-wrapper")
-    //     .find(".course-title")
-        // .text();
-        
-    // console.log(courseName);
-
-    return;
+    return {
+        courseName: parser.getCourseName(),
+        term: parser.getTerm(),
+        termTime: parser.getTermTime(),
+        workLoad: parser.getWorkLoad(),
+        studentCount: parser.getStudentCount(),
+    };
 }
