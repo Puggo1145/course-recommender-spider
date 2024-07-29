@@ -4,9 +4,14 @@ import { getDocumentByPuppeteer } from "../html-handler";
 import { getRandomUserAgent } from "../../constants/ua";
 import { moocUrls } from "../../constants/urls";
 import { getDate } from "../../utils/timehandler";
+// types
+import type { CourseOutlineStandard } from "../parser/mooc-parser";
+
 
 import https from "https";
 // import fs from "fs";
+
+
 
 
 export const getMoocInfo = async (courseId: string) => {
@@ -26,6 +31,11 @@ export const getMoocInfo = async (courseId: string) => {
 const analyzeInfoDoc = (doc: string) => {
     const parser = new MoocHTMLParser(doc);
 
+    let syllabus: CourseOutlineStandard[] | string[] = parser.getOutlineStandard();
+    if (syllabus.length === 0) {
+        syllabus = parser.getOutlineRichText();
+    }
+
     return {
         courseName: parser.getName(),
         term: parser.getTerm(),
@@ -34,7 +44,7 @@ const analyzeInfoDoc = (doc: string) => {
         studentCount: parser.getStudentCount(),
         headingIntro: parser.getHeadingIntro(),
         teachingTarget: parser.getTeachingTarget(),
-        syllabus: parser.getOutline(),
+        syllabus,
         prerequisites: parser.getPrerequisites(),
         reference: parser.getReference(),
         university: parser.getUniversity(),

@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 
 type Doc = cheerio.Cheerio<cheerio.Element>
-interface CourseOutline {
+export interface CourseOutlineStandard {
     title: string | null;
     desc: string | null;
     courses: string[] | null;
@@ -25,7 +25,7 @@ class MoocHTMLParser {
     // 课程基本信息
     private goToBacisInfo() {
         return this.doc
-            .find(".certifiedTop")
+            .find("div").eq(0)
             .find(".m-top")
             .find(".g-flow")
             .find(".introCard")
@@ -114,8 +114,8 @@ class MoocHTMLParser {
             .text() ?? null;
     }
     // 课程大纲
-    getOutline() {
-        const outline: CourseOutline[] = [];
+    getOutlineStandard() {
+        const outline: CourseOutlineStandard[] = [];
 
         const courseDetail = this.goToDetail();
         courseDetail
@@ -150,6 +150,25 @@ class MoocHTMLParser {
 
         return outline;
     }
+    getOutlineRichText() {
+        const outline: string[] = [];
+
+        const courseDetail = this.goToDetail();
+        courseDetail
+            .find("#j-course-outline")
+            .find(".f-richEditorText")
+            .find("p")
+            .map((_, element) => {
+                const content = this.$(element)
+                    .text()
+                
+                outline.push(content)
+            })
+
+        return outline;
+    }
+
+
     // 预备知识
     getPrerequisites() {
         const courseDetail = this.goToDetail();
