@@ -13,7 +13,7 @@ import { getMoocInfo, getMoocComments } from "./index"
 
         const infoRes = await getMoocInfo(courseId);
         // 保存到 output
-        // fs.writeFileSync(`../output/${infoRes.courseName}-info.json`, JSON.stringify(infoRes, null, 4))
+        fs.writeFileSync(`../output/${infoRes.courseName}-info.json`, JSON.stringify(infoRes, null, 4))
 
         // const res = await getMoocComments({
         //     courseId: courseId,

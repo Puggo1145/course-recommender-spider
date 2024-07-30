@@ -18,14 +18,18 @@ export const getMoocInfo = async (courseId: string) => {
     // 本地 html 测试文件
     // const html = fs.readFileSync("../output/example.html", "utf-8");
 
-    const res = await getDocumentByPuppeteer({
+    const {
+        html, 
+        studentCount, 
+        teachersIntro
+    } = await getDocumentByPuppeteer({
         url: moocUrls.info + courseId,
         useCookie: true
     });
 
-    const data = analyzeInfoDoc(res.html);
+    const data = analyzeInfoDoc(html);
 
-    return data;
+    return {...data, studentCount, teachersIntro};
 }
 
 const analyzeInfoDoc = (doc: string) => {
@@ -41,14 +45,12 @@ const analyzeInfoDoc = (doc: string) => {
         term: parser.getTerm(),
         termTime: parser.getTermTime(),
         workLoad: parser.getWorkLoad(),
-        studentCount: parser.getStudentCount(),
         headingIntro: parser.getHeadingIntro(),
         teachingTarget: parser.getTeachingTarget(),
         syllabus,
         prerequisites: parser.getPrerequisites(),
         reference: parser.getReference(),
         university: parser.getUniversity(),
-        teachers: parser.getTeachers(),
     };
 }
 

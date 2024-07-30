@@ -14,22 +14,20 @@ export const getDocumentByPuppeteer = async ({
     try {
         const page = await browser.newPage();
 
-        console.log("正在获取 html");
+        console.log("获取开课期数和教师介绍");
         await page.goto(url);
-
-        // 1. 获取所有开课期次的链接
-        // 获取所有li元素的数量
-        // const studentCount = await getAllStudentCount(page);
+        const studentCount = await getAllStudentCount(page);
         const teachersIntro = await getTeachersInfo(page);
-        console.log(teachersIntro);
-
-
+        
+        console.log("获取课程页面文档");
+        await page.goto(url);
         const html = await page.content();
         const cookie = useCookie ? await page.cookies() : null;
 
         return {
             html,
-            // studentCount,
+            studentCount,
+            teachersIntro,
             cookie
         };
     } finally {
@@ -83,6 +81,7 @@ const getAllStudentCount = async (page: Page) => {
 
 interface Teacher {
     name: string;
+    title?: string;
     intro?: string;
 }
 /**
@@ -134,7 +133,7 @@ const getTeachersInfo = async (page: Page): Promise<Teacher[]> => {
             // 跳转到搜索页面
             await page.goto(`https://www.icourse163.org/search.htm?search=${encodeURIComponent(name)}`, {
                 waitUntil: 'networkidle0',
-                timeout: 30000
+                timeout: 12000
             });
 
             // 等待并获取搜索结果中的教师链接
@@ -154,7 +153,9 @@ const getTeachersInfo = async (page: Page): Promise<Teacher[]> => {
                 await page.waitForSelector('.j-teacher-desc', { timeout: 10000 });
                 console.log("开始获取介绍");
                 
-                const intro = await page.evaluate(() => {
+                const { intro, title } = await page.evaluate(() => {
+                    let intro = '';
+
                     const descElement = document.querySelector('.j-teacher-desc');
                     if (descElement) {
                         const viewAllButton = descElement.querySelector('#j-teacher-desc-all');
@@ -164,18 +165,23 @@ const getTeachersInfo = async (page: Page): Promise<Teacher[]> => {
                             // await new Promise(resolve => setTimeout(resolve, 1000)); // 等待模态框加载
 
                             const modalDescElement = document.querySelector('.ux-modal_dialog .ux-modal_bd_ct p');
-                            return modalDescElement ? modalDescElement.textContent?.trim() || '' : '';
+                            intro = modalDescElement ? modalDescElement.textContent?.trim() || '' : '';
                         } else {
-                            return descElement.textContent?.trim() || '';
+                            intro = descElement.textContent?.trim() || '';
                         }
                     }
-                    return '';
+
+                    const titleElement = document.querySelector('.school-desc .tag');
+                    const title = titleElement ? titleElement.textContent?.trim() || '' : '';
+
+                    return { intro, title };
                 });
 
                 // 更新教师信息
                 const index = teachers.findIndex(t => t.name === name);
                 if (index !== -1) {
                     teachers[index].intro = intro;
+                    teachers[index].title = title;
                 }
             } else {
                 console.error(`未找到教师 ${name} 的详细信息链接`);
