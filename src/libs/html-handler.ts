@@ -158,10 +158,7 @@ const getTeachersInfo = async (page: Page): Promise<Teacher[]> => {
                     const descElement = document.querySelector('.j-teacher-desc');
                     if (descElement) {
                         const viewAllButton = descElement.querySelector('#j-teacher-desc-all');
-
                         if (viewAllButton) {
-                            console.log("查看教师全部介绍");
-
                             (viewAllButton as HTMLElement).click();
 
                             // await new Promise(resolve => setTimeout(resolve, 1000)); // 等待模态框加载
