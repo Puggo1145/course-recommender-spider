@@ -39,7 +39,6 @@ class Scraper {
         } catch (error) {
             if (error instanceof Error) {
                 console.error(`Error with proxy ${proxy}:`, error.message);
-                // 可以在这里添加逻辑来处理代理失败的情况
                 throw error;
             }
         }

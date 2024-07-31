@@ -86,6 +86,12 @@ interface Teacher {
     title?: string | null;
     intro?: string | null;
 }
+/**
+ * @param browser
+ * @param page: Page
+ * @returns 教授简介
+ * @description 获取课程所有教授的个人简介
+ */
 const getTeachersInfoV1 = async (
     browser: Browser,
     page: Page
