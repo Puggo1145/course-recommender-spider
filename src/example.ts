@@ -1,13 +1,9 @@
 import fs from "fs"
 
 import { getMoocInfo, getMoocComments } from "./index"
+import { courseIds } from "./constants/courseIds"
 
 (async () => {
-    // const courseId = "CQU-1449259163"
-    const courseIds = [
-        "BIT-268001",
-    ]
-
     courseIds.forEach(async courseId => {
         console.log(`正在获取课程 ${courseId}`);
 

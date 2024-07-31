@@ -1,4 +1,4 @@
-import puppeteer, { Page } from "puppeteer";
+import puppeteer, { Browser, Page } from "puppeteer";
 
 interface PuppeteerProps {
     url: string;
@@ -9,20 +9,22 @@ export const getDocumentByPuppeteer = async ({
     url,
     useCookie = false
 }: PuppeteerProps) => {
-    const browser = await puppeteer.launch();
+    const browser = await puppeteer.launch({
+        headless: false,
+        defaultViewport: { width: 1920, height: 1080 },
+    });
 
     try {
         const page = await browser.newPage();
 
-        console.log("获取开课期数和教师介绍");
-        await page.goto(url);
-        const studentCount = await getAllStudentCount(page);
-        const teachersIntro = await getTeachersInfo(page);
-        
         console.log("获取课程页面文档");
         await page.goto(url);
         const html = await page.content();
         const cookie = useCookie ? await page.cookies() : null;
+
+        console.log("获取开课期数和教师介绍");
+        const studentCount = await getAllStudentCount(page);
+        const teachersIntro = await getTeachersInfoV1(browser, page);
 
         return {
             html,
@@ -81,15 +83,96 @@ const getAllStudentCount = async (page: Page) => {
 
 interface Teacher {
     name: string;
-    title?: string;
-    intro?: string;
+    title?: string | null;
+    intro?: string | null;
 }
+const getTeachersInfoV1 = async (
+    browser: Browser,
+    page: Page
+): Promise<Teacher[]> => {
+    const teachersInfo: Teacher[] = [];
+
+    while (true) {
+        await page.waitForSelector('.m-teachers_teacher-list_wrap .um-list-slider_con_item', {
+            timeout: 10000
+        });
+
+        // 获取当前页面上所有的教师卡片
+        const teacherCards = await page.$$('.m-teachers_teacher-list_wrap .um-list-slider_con_item');
+        for (const card of teacherCards) {
+            const name = await card.$eval('.cnt .f-fc3', el => el.textContent?.trim() || '');
+            console.log(`正在获取教师：${name}`);
+
+
+            // 等待新标签页打开的 Promise
+            const newPagePromise = new Promise<Page>((resolve, reject) => {
+                browser.once('targetcreated', async target => {
+                    const newPage = await target.page();
+                    if (newPage) {
+                        resolve(newPage);
+                    } else {
+                        reject(new Error('新标签页打开失败'));
+                    }
+                });
+            });
+
+            // 获取新标签页
+            await card.click({ delay: 100 });
+            const newPage = await newPagePromise;
+
+            // 获取教师介绍
+            await newPage.waitForNetworkIdle();
+            await newPage.waitForSelector('.j-teacher-desc', { timeout: 10000 });
+
+            // 检查是否有“查看全部”按钮
+            const hasViewAllButton = await newPage.$('#j-teacher-desc-all') !== null;
+            if (hasViewAllButton) {
+                await newPage.click('#j-teacher-desc-all');
+                await newPage.waitForSelector('.ux-modal_dialog .ux-modal_bd_ct', { timeout: 10000 });
+            }
+
+            const { intro, title } = await newPage.evaluate(() => {
+                let intro = null;
+
+                const descElement = document.querySelector('.j-teacher-desc');
+                if (descElement) {
+                    if (document.querySelector('.ux-modal_dialog .ux-modal_bd_ct p')) {
+                        const modalDescElement = document.querySelector('.ux-modal_dialog .ux-modal_bd_ct p');
+                        intro = modalDescElement ? modalDescElement.textContent?.trim() || null : null;
+                    } else {
+                        intro = descElement.textContent?.trim() || null;
+                    }
+                }
+
+                const titleElement = document.querySelector('.school-desc .tag');
+                const title = titleElement ? titleElement.textContent?.trim() || null : null;
+
+                return { intro, title };
+            });
+
+            teachersInfo.push({ name, intro, title });
+
+            await newPage.close();
+        }
+
+        // 检查是否有下一页按钮
+        const nextButton = await page.$('.um-list-slider_next:not(.f-dn)');
+        if (!nextButton) break;
+
+        // 点击下一页按钮
+        await nextButton.click({ delay: 100 });
+    }
+
+    return teachersInfo;
+}
+
 /**
  * @param page
  * @returns 教授简介
  * @description 获取课程所有教授的个人简介
+ * @deprecated
  */
-const getTeachersInfo = async (page: Page): Promise<Teacher[]> => {
+const getTeachersInfoBySearch = async (page: Page): Promise<Teacher[]> => {
     const teachers: Teacher[] = [];
 
     // 首先获取所有教师名称
@@ -142,7 +225,7 @@ const getTeachersInfo = async (page: Page): Promise<Teacher[]> => {
                 const link = document.querySelector('.search-results-recommend a') as HTMLAnchorElement;
                 return link ? link.href : null;
             });
-            
+
             if (href) {
                 console.log("找到教师个人链接：" + href);
 
@@ -152,7 +235,7 @@ const getTeachersInfo = async (page: Page): Promise<Teacher[]> => {
                 // 获取教师介绍
                 await page.waitForSelector('.j-teacher-desc', { timeout: 10000 });
                 console.log("开始获取介绍");
-                
+
                 const { intro, title } = await page.evaluate(() => {
                     let intro = '';
 
