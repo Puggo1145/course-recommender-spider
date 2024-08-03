@@ -1,5 +1,6 @@
 import { getBiliInfo, getBiliComment } from "./libs/core/bili";
 import { getMoocInfo, getMoocComments } from "./libs/core/mooc";
+import { getCourseIdBySearch } from "./libs/course-handler";
 
 // bili
 export {
@@ -9,5 +10,6 @@ export {
 // mooc
 export {
     getMoocInfo,
-    getMoocComments
+    getMoocComments,
+    getCourseIdBySearch
 }

@@ -1,36 +1,53 @@
+import https from "https";
+// import fs from "fs";
 import axios, { AxiosError } from "axios";
-import MoocHTMLParser from "../parser/mooc-parser";
-import { getDocumentByPuppeteer } from "../html-handler";
 import { getRandomUserAgent } from "../../constants/ua";
+// constants
 import { moocUrls } from "../../constants/urls";
+// utils
 import { getDate } from "../../utils/timehandler";
+// parser
+import MoocHTMLParser from "../parser/mooc-parser";
+import { getDocumentByCourseId } from "../course-handler";
 // types
 import type { CourseOutlineStandard } from "../parser/mooc-parser";
 
 
-import https from "https";
-// import fs from "fs";
-
-
-
-
+/**
+ * 
+ * @param courseId 课程码
+ * @description 获取课程页面基本信息
+ */
 export const getMoocInfo = async (courseId: string) => {
     // 本地 html 测试文件
     // const html = fs.readFileSync("../output/example.html", "utf-8");
 
-    const {
-        html, 
-        studentCount, 
-        teachersIntro
-    } = await getDocumentByPuppeteer({
-        url: moocUrls.info + courseId,
-        useCookie: true
-    });
+    const res = await getDocumentByCourseId(moocUrls.info + courseId);
 
-    const data = analyzeInfoDoc(html);
+    if (res) {
+        const { html, studentCount, teachersIntro } = res;
 
-    return {...data, studentCount, teachersIntro};
+        const data = analyzeInfoDoc(html);
+
+        return {...data, studentCount, teachersIntro};
+    } else {
+        return {
+            courseName: "",
+            term: "",
+            termTime: "",
+            workLoad: "",
+            headingIntro: "",
+            teachingTarget: "",
+            syllabus: [],
+            prerequisites: "",
+            reference: "",
+            university: "",
+            studentCount: [],
+            teachersIntro: [],
+        };
+    }
 }
+
 
 const analyzeInfoDoc = (doc: string) => {
     const parser = new MoocHTMLParser(doc);
@@ -55,6 +72,10 @@ const analyzeInfoDoc = (doc: string) => {
 }
 
 
+/**
+ * @param courseId 课程码
+ * @description 获取课程评论的访问 cookie
+ */
 const getCookie = async (courseId: string) => {
     console.log("正在获取 cookies");
 
@@ -115,6 +136,7 @@ const requestComment = async({
 
     return res
 }
+
 
 export const getMoocComments = async ({
     courseId,
@@ -194,6 +216,7 @@ export const getMoocComments = async ({
         }
     }
 }
+
 
 interface OriginalComment {
     id: number,
