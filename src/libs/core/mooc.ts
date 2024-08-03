@@ -18,11 +18,14 @@ import type { CourseOutlineStandard } from "../parser/mooc-parser";
  * @param courseId 课程码
  * @description 获取课程页面基本信息
  */
-export const getMoocInfo = async (courseId: string) => {
+export const getMoocInfo = async (
+    courseId: string, 
+    courseType: "default" | "spoc" = "default"
+) => {
     // 本地 html 测试文件
     // const html = fs.readFileSync("../output/example.html", "utf-8");
 
-    const res = await getDocumentByCourseId(moocUrls.info + courseId);
+    const res = await getDocumentByCourseId(courseId, courseType);
 
     if (res) {
         const { html, studentCount, teachersIntro } = res;

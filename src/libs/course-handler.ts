@@ -8,8 +8,11 @@ import { parseCookies } from "../utils/cookieStr2Object";
  * @param url 
  * @description 使用课程码的形式获取课程页面文档
  */
-export const getDocumentByCourseId = async (courseId: string) => {
-    const url = moocUrls.info + courseId;
+export const getDocumentByCourseId = async (
+    courseId: string,
+    courseType: "default" | "spoc" = "default"
+) => {
+    const url = (courseType === "default" ? moocUrls.info : moocUrls.spoc) + courseId;
 
     const browser = await puppeteer.launch({
         // headless: false,
@@ -55,43 +58,58 @@ export const getCourseIdBySearch = async (
     const url = `${moocUrls.searchPage}${encodeURIComponent(name)}`;
 
     const browser = await puppeteer.launch({
-        headless: false,
-        defaultViewport: { width: 1920, height: 1080 },
+        // headless: false,
+        // defaultViewport: { width: 1920, height: 1080 },
     });
 
     try {
-        // 为浏览器设置 cookie 以搜索出正确的课程
         const page = await browser.newPage();
         const cookieParams = parseCookies(cookie, ".icourse163.org");
         await page.setCookie(...cookieParams);
 
         await page.goto(url);
 
-        console.log("获取符合搜索条件的课程 id");
         const allCourses = await page.$$('.m-course-list .u-clist');
 
-        const matchedCourse = allCourses.filter(async course => {
-            const courseName = await course.$eval(
-                ".g-mn1 .g-mn1c .cnt .u-course-name",
-                el => el.textContent?.trim() || ""
+        let matchedCourse = null;
+        for (const course of allCourses) {
+            try {
+                const courseName = await course.$eval(
+                    ".g-mn1 .g-mn1c .cnt .u-course-name",
+                    el => el.textContent?.trim() || ""
+                );
+                const universityName = await course.$eval(
+                    ".g-mn1 .g-mn1c .cnt .f-nowrp .t21",
+                    el => el.textContent?.trim() || ""
+                );
+
+                if (courseName === name && universityName === university) {
+                    matchedCourse = course;
+                    break;
+                }
+            } catch (error) {
+                console.error(`处理课程时出错：${(error as Error).message}`);
+            }
+        }
+
+        if (!matchedCourse) {
+            console.log(`未找到匹配的课程：${name} - ${university}`);
+            return null;
+        }
+
+        try {
+            const courseId = await matchedCourse.$eval(
+                ".g-mn1 .g-mn1c .cnt .first-row a",
+                el => el.href.trim().split("?")[0].split("/")[5]
             );
-            const universityName = await course.$eval(
-                ".g-mn1 .g-mn1c .cnt .f-nowrp .t21",
-                el => el.textContent?.trim() || ""
-            );
-
-            return courseName === name && universityName === university
-        });
-
-        const courseId = await matchedCourse[0].$eval(
-            ".g-mn1 .g-mn1c .cnt .first-row a",
-            el => el.href.trim().split("?")[0].split("/")[5]
-        )
-
-        return courseId;
+            return courseId;
+        } catch (error) {
+            console.error(`获取课程ID时出错：${error}`);
+            return null;
+        }
     } catch (err) {
         if (err instanceof Error) {
-            console.error(`获取页面${url}时出错：${err.name}`);
+            console.error(`获取课程${name}时出错：${err.name}, ${err.message}`);
         }
         return null;
     } finally {
@@ -111,11 +129,22 @@ const getAllStudentCount = async (page: Page) => {
 
     // 获取所有li元素
     const liElements = await page.$$('.course-enroll-info_course-info_term-select_dropdown ul.ux-dropdown_listview li');
+    // 只有一次开课则直接获取参加人数
+    if (liElements.length === 0) {
+        // 获取li的文本（开课期数）
+        await page.waitForSelector('.course-enroll-info_course-info_term-progress .count', { timeout: 100000 });
+        const countText = await page.$eval('.course-enroll-info_course-info_term-progress .count', el => el.textContent?.trim());
 
+        studentCount.push({ term: "第1次开课", countText });
+
+        return studentCount;
+    }
+
+    // 有多个元素则循环切换页面获取参加人数
     for (let i = 0; i < liElements.length; i++) {
         // 重新获取li元素
         const liSelector = '.course-enroll-info_course-info_term-select_dropdown ul.ux-dropdown_listview li';
-        await page.waitForSelector(liSelector);
+        await page.waitForSelector(liSelector, { timeout: 100000 });
         const li = (await page.$$(liSelector))[i];
 
         // 获取li的文本（开课期数）
@@ -130,10 +159,10 @@ const getAllStudentCount = async (page: Page) => {
         await page.evaluate(el => el.click(), li);
 
         // 等待新页面加载
-        await page.waitForNavigation({ waitUntil: 'networkidle0' });
+        await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 100000 });
 
         // 在新页面中获取目标文本
-        await page.waitForSelector('.course-enroll-info_course-info_term-progress .count');
+        await page.waitForSelector('.course-enroll-info_course-info_term-progress .count', { timeout: 100000 });
         const countText = await page.$eval('.course-enroll-info_course-info_term-progress .count', el => el.textContent?.trim());
 
         studentCount.push({ term, countText });

@@ -20,8 +20,10 @@ async function processChunk(chunk: string[]) {
     const promises = chunk.map(async courseId => {
         console.log(`正在获取课程 ${courseId}`);
         const infoRes = await getMoocInfo(courseId, "spoc");
+        
         // 保存到 output
-        fs.writeFileSync(`../../output/${infoRes.courseName}-info.json`, JSON.stringify(infoRes, null, 4));
+        const courseName = infoRes.courseName.replace(/[\/\\:]/g, '_');
+        fs.writeFileSync(`../../output/${courseName}-info.json`, JSON.stringify(infoRes, null, 4));
 
         // const res = await getMoocComments({
         //     courseId: courseId,

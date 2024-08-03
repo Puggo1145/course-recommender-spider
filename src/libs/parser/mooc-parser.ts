@@ -119,7 +119,6 @@ class MoocHTMLParser {
 
         const courseDetail = this.goToDetail();
         courseDetail
-            .find(".category-content").eq(2)
             .find(".outline")
             .find(".outline__new-outline")
             .find(".outline__new-outline__chapter")
