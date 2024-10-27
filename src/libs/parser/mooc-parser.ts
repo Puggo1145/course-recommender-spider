@@ -12,7 +12,9 @@ interface Teachers {
 }
 
 
-// Cheerio 解析器
+/**
+ * @description 用于解析 Mooc 课程页面 HTML 文档并获取数据的构造函数
+ */
 class MoocHTMLParser {
     private $: cheerio.CheerioAPI;
     private doc: Doc;

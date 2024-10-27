@@ -1,22 +1,11 @@
 import fs from "fs"
-
 import { 
     getMoocInfo, 
     getMoocComments,
 } from "../index"
 
-// 将数组分块
-function chunkArray(array: string[], size: number) {
-    const chunkedArray = [];
-    for (let i = 0; i < array.length; i += size) {
-        chunkedArray.push(array.slice(i, i + size));
-    }
-    return chunkedArray;
-}
-
-// 处理每个分块
-async function processChunk(chunk: string[]) {
-    const promises = chunk.map(async courseId => {
+async function processCourse(courseId: string) {
+    try {
         console.log(`正在获取课程 ${courseId}`);
         const infoRes = await getMoocInfo(courseId);
         
@@ -32,8 +21,12 @@ async function processChunk(chunk: string[]) {
         });
         // 保存到 output
         fs.writeFileSync(`../../output/${courseName}-comments.json`, JSON.stringify(res?.comments, null, 4));
-    });
-    await Promise.all(promises);
+
+        return null; // 表示成功
+    } catch (error) {
+        console.error(`获取课程 ${courseId} 失败:`, error);
+        return courseId; // 返回失败的 courseId
+    }
 }
 
 (async () => {
@@ -42,9 +35,20 @@ async function processChunk(chunk: string[]) {
     const courseIds = JSON.parse(file) as string[];
     console.log(`共有 ${courseIds.length} 个课程`);
     
+    const failedCourseIds: string[] = [];
 
-    const chunkedCourseIds = chunkArray(courseIds, 5);
-    for (const chunk of chunkedCourseIds) {
-        await processChunk(chunk);
+    for (const courseId of courseIds) {
+        const failedCourseId = await processCourse(courseId);
+        if (failedCourseId) {
+            failedCourseIds.push(failedCourseId);
+        }
+    }
+
+    // 保存失败的 courseIds
+    if (failedCourseIds.length > 0) {
+        fs.writeFileSync("../../output/failedCourseIds.json", JSON.stringify(failedCourseIds, null, 4));
+        console.log(`有 ${failedCourseIds.length} 个课程获取失败，已保存到 failedCourseIds.json`);
+    } else {
+        console.log("所有课程都成功获取");
     }
 })();

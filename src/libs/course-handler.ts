@@ -3,6 +3,7 @@ import puppeteer, { Browser, Page } from "puppeteer";
 import { moocUrls } from "../constants/urls";
 // utils
 import { parseCookies } from "../utils/cookieStr2Object";
+import { calculateSimilarity } from "../utils/calculateSimilarity";
 
 /**
  * @param url 
@@ -44,6 +45,7 @@ export const getDocumentByCourseId = async (
     }
 }
 
+
 /**
  * @param name 课程名称
  * @param university 课程所属学校
@@ -74,10 +76,13 @@ export const getCourseIdBySearch = async (
         let matchedCourse = null;
         for (const course of allCourses) {
             try {
+                await page.waitForSelector('.g-mn1 .g-mn1c .cnt .u-course-name', { timeout: 10000 });
                 const courseName = await course.$eval(
                     ".g-mn1 .g-mn1c .cnt .u-course-name",
                     el => el.textContent?.trim() || ""
                 );
+
+                await page.waitForSelector('.g-mn1 .g-mn1c .cnt .f-nowrp .t21', { timeout: 10000 });
                 const universityName = await course.$eval(
                     ".g-mn1 .g-mn1c .cnt .f-nowrp .t21",
                     el => el.textContent?.trim() || ""
@@ -98,11 +103,16 @@ export const getCourseIdBySearch = async (
         }
 
         try {
-            const courseId = await matchedCourse.$eval(
+            const linkOnMatch = await matchedCourse.$eval(
                 ".g-mn1 .g-mn1c .cnt .first-row a",
-                el => el.href.trim().split("?")[0].split("/")[5]
+                el => el.href.trim().split("?")[0].split("/")
             );
-            return courseId;
+
+            if (linkOnMatch.includes("spoc")) {
+                return linkOnMatch[5]
+            } else {
+                return linkOnMatch[4];
+            }
         } catch (error) {
             console.error(`获取课程ID时出错：${error}`);
             return null;
@@ -117,6 +127,65 @@ export const getCourseIdBySearch = async (
     }
 }
 
+
+/**
+ * @param name 课程名称
+ * @description 获取一门课程的 3-5 门课的关联课程的课程 ID
+ */
+interface RelatedCourses {
+    [key: string]: string[];
+}
+export const getRelatedCourseIds = async (name: string): Promise<RelatedCourses | null> => {
+    const url = `${moocUrls.searchPage}${encodeURIComponent(name)}`;
+
+    const browser = await puppeteer.launch({
+        // headless: false,
+        // defaultViewport: { width: 1920, height: 1080 },
+    });
+
+    try {
+        const page = await browser.newPage();
+        await page.goto(url);
+
+        const allCourses = await page.$$('.m-course-list .u-clist');
+
+        const relatedCourses: string[] = [];
+        for (const course of allCourses) {
+            const courseName = await course.$eval(
+                ".g-mn1 .g-mn1c .cnt .u-course-name",
+                el => el.textContent?.trim() || ""
+            );
+
+            const similarity = calculateSimilarity(courseName, name);
+            
+            
+            if (similarity > 0.6) {
+                console.log(`找到相似课程 ${courseName}，与 ${name} 的相似度：${similarity}`);
+                const linkOnMatch = await course.$eval(
+                    ".g-mn1 .g-mn1c .cnt .first-row a",
+                    el => el.href.trim().split("?")[0].split("/")
+                );
+
+                const courseId = linkOnMatch.includes("spoc") ? linkOnMatch[5] : linkOnMatch[4];
+                relatedCourses.push(courseId);
+
+                if (relatedCourses.length >= 5) {
+                    break;
+                }
+            }
+        }
+
+        return { [name]: relatedCourses };
+
+    } catch (err) {
+        if (err instanceof Error) {
+            console.error(`获取课程${name}时出错：${err.name}, ${err.message}`);
+        }
+        return null;
+    } finally {
+        await browser.close();
+    }
+}
 
 
 /**
@@ -266,115 +335,3 @@ const getTeachersInfoV1 = async (
 
     return teachersInfo;
 }
-
-/**
- * @param page
- * @returns 教授简介
- * @description 获取课程所有教授的个人简介
- * @deprecated
- */
-// const getTeachersInfoBySearch = async (page: Page): Promise<Teacher[]> => {
-//     const teachers: Teacher[] = [];
-
-//     // 首先获取所有教师名称
-//     const getAllTeacherNames = async (): Promise<string[]> => {
-//         const names: string[] = [];
-//         while (true) {
-//             await page.waitForSelector('.m-teachers_teacher-list_wrap .um-list-slider_con_item', { timeout: 10000 });
-
-//             const newNames = await page.evaluate(() => {
-//                 const cards = document.querySelectorAll('.m-teachers_teacher-list_wrap .um-list-slider_con_item');
-//                 return Array.from(cards).map(card => card.querySelector('.cnt .f-fc3')?.textContent?.trim() || '');
-//             });
-
-//             names.push(...newNames);
-
-//             const nextButton = await page.$('.um-list-slider_next:not(.f-dn)');
-//             if (!nextButton) break;
-
-//             try {
-//                 await Promise.all([
-//                     page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }),
-//                     nextButton.click()
-//                 ]);
-//             } catch (e) {
-//                 console.error(`点击下一页按钮时出错: ${e}`);
-//                 break;
-//             }
-//         }
-//         return names.filter(name => name !== '');
-//     };
-
-//     const teacherNames = await getAllTeacherNames();
-//     console.log(`共找到 ${teacherNames.length} 位教师`);
-
-//     // 为每个教师获取详细信息
-//     for (const name of teacherNames) {
-//         console.log(`正在获取教师信息：${name}`);
-//         teachers.push({ name }); // 先添加名字，后面再更新介绍
-
-//         try {
-//             // 跳转到搜索页面
-//             await page.goto(`https://www.icourse163.org/search.htm?search=${encodeURIComponent(name)}`, {
-//                 waitUntil: 'networkidle0',
-//                 timeout: 12000
-//             });
-
-//             // 等待并获取搜索结果中的教师链接
-//             await page.waitForSelector('.search-results-recommend a', { timeout: 10000 });
-//             const href = await page.evaluate(() => {
-//                 const link = document.querySelector('.search-results-recommend a') as HTMLAnchorElement;
-//                 return link ? link.href : null;
-//             });
-
-//             if (href) {
-//                 console.log("找到教师个人链接：" + href);
-
-//                 // 跳转到教师详细信息页面
-//                 await page.goto(href, { waitUntil: 'networkidle0', timeout: 30000 });
-
-//                 // 获取教师介绍
-//                 await page.waitForSelector('.j-teacher-desc', { timeout: 10000 });
-//                 console.log("开始获取介绍");
-
-//                 const { intro, title } = await page.evaluate(() => {
-//                     let intro = '';
-
-//                     const descElement = document.querySelector('.j-teacher-desc');
-//                     if (descElement) {
-//                         const viewAllButton = descElement.querySelector('#j-teacher-desc-all');
-//                         if (viewAllButton) {
-//                             (viewAllButton as HTMLElement).click();
-
-//                             // await new Promise(resolve => setTimeout(resolve, 1000)); // 等待模态框加载
-
-//                             const modalDescElement = document.querySelector('.ux-modal_dialog .ux-modal_bd_ct p');
-//                             intro = modalDescElement ? modalDescElement.textContent?.trim() || '' : '';
-//                         } else {
-//                             intro = descElement.textContent?.trim() || '';
-//                         }
-//                     }
-
-//                     const titleElement = document.querySelector('.school-desc .tag');
-//                     const title = titleElement ? titleElement.textContent?.trim() || '' : '';
-
-//                     return { intro, title };
-//                 });
-
-//                 // 更新教师信息
-//                 const index = teachers.findIndex(t => t.name === name);
-//                 if (index !== -1) {
-//                     teachers[index].intro = intro;
-//                     teachers[index].title = title;
-//                 }
-//             } else {
-//                 console.error(`未找到教师 ${name} 的详细信息链接`);
-//             }
-
-//         } catch (error) {
-//             console.error(`获取教师 ${name} 的信息时出错: ${error}`);
-//         }
-//     }
-
-//     return teachers;
-// };

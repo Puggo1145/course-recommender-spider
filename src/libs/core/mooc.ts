@@ -14,7 +14,6 @@ import type { CourseOutlineStandard } from "../parser/mooc-parser";
 
 
 /**
- * 
  * @param courseId 课程码
  * @description 获取课程页面基本信息
  */
@@ -52,6 +51,11 @@ export const getMoocInfo = async (
 }
 
 
+/**
+ * 
+ * @param doc HTML 文档
+ * @returns 调用封装的 Cheerio 解析器，结构化课程信息
+ */
 const analyzeInfoDoc = (doc: string) => {
     const parser = new MoocHTMLParser(doc);
 
@@ -141,6 +145,13 @@ const requestComment = async({
 }
 
 
+/**
+ * @param courseId 课程码
+ * @param pageIndex 评论页码
+ * @param pageSize 每页评论数量
+ * @param orderBy 排序方式
+ * @description 获取课程评论
+ */
 export const getMoocComments = async ({
     courseId,
     pageIndex,
@@ -241,6 +252,10 @@ interface StructurizedComment {
     content: string;
     likes: number;
 }
+/**
+ * @param comments 原评论格式的数组
+ * @returns 结构化的评论数组
+ */
 const structurizeComments = (comments: OriginalComment[]) => {
     return comments.map(comment => ({
         username: comment.userNickName,

@@ -7,6 +7,7 @@ export {
     getBiliInfo,
     getBiliComment
 }
+
 // mooc
 export {
     getMoocInfo,
